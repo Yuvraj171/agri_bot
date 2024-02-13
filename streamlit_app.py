@@ -69,7 +69,13 @@ if prompt := st.chat_input(disabled=not (hf_email and hf_pass)):
 
 
 # User-provided prompt
-if prompt := st.chat_input(disabled=not (hf_email and hf_pass)):
+if prompt := st.chat_input(key="user_input1", disabled=not (hf_email and hf_pass)):
+    st.session_state.messages.append({"role": "user", "content": prompt})
+    with st.chat_message("user"):
+        st.write(prompt)  
+
+# User-provided prompt (second instance)
+if prompt := st.chat_input(key="user_input2", disabled=not (hf_email and hf_pass)):
     st.session_state.messages.append({"role": "user", "content": prompt})
     with st.chat_message("user"):
         st.write(prompt)
@@ -132,40 +138,37 @@ def generate(
     return output 
 
 additional_inputs=[
-    st.Slider(
+    st.slider(
         label="Temperature",
         value=0.9,
-        minimum=0.0,
-        maximum=1.0,
-        step=0.05,
-        interactive=True,
-        info="Higher values produce more diverse outputs",
+        min_value=0.0,  # Make sure this is a float
+        max_value=1.0,
+        step=0.05,      # Make sure this is a float
+        format="%.2f",  # Format to two decimal places
+        help="Higher values produce more diverse outputs",
     ),
-    st.Slider(
+    st.slider(
         label="Max new tokens",
         value=256,
-        minimum=0,
-        maximum=1048,
-        step=64,
-        interactive=True,
-        info="The maximum numbers of new tokens",
+        min_value=0,    # Make sure this is an integer
+        max_value=1048, # Make sure this is an integer
+        step=64,        # Make sure this is an integer
+        help="The maximum numbers of new tokens",
     ),
-    st.Slider(
+    st.slider(
         label="Top-p (nucleus sampling)",
         value=0.90,
-        minimum=0.0,
-        maximum=1,
+        min_value=0.0,
+        max_value=1.0,
         step=0.05,
-        interactive=True,
-        info="Higher values sample more low-probability tokens",
+        help="Higher values sample more low-probability tokens",
     ),
-    st.Slider(
+    st.slider(
         label="Repetition penalty",
         value=1.2,
-        minimum=1.0,
-        maximum=2.0,
+        min_value=1.0,
+        max_value=2.0,
         step=0.05,
-        interactive=True,
-        info="Penalize repeated tokens",
+        help="Penalize repeated tokens",
     )
 ]
