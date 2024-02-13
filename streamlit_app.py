@@ -1,18 +1,58 @@
-#importing libraries
-#this is agri bot
-
+import streamlit as st
+from hugchat import hugchat
+from hugchat.login import Login
 import json
 import os
 from huggingface_hub import InferenceClient
-import gradio as gr
 import time
+
+
 my_db ={}
 client = InferenceClient(
-    "mistralai/Mistral-7B-Instruct-v0.1"
-)
-    
+    "mistralai/Mistral-7B-Instruct-v0.1")
+
+#App Title
+st.set_page_config(page_title="🤗💬 AgriChat")
+
+#Hugging face credentials
+with st.sidebar:
+    st.title('🤗💬 AgriChat')
+    if ('EMAIL' in st.secrets) and ('PASS' in st.secrets):
+        st.success('HuggingFace Login credentials already provided!', icon='✅')
+        hf_email = st.secrets['EMAIL']
+        hf_pass = st.secrets['PASS']
+    else:
+        hf_email = st.text_input('Enter E-mail:', type='password')
+        hf_pass = st.text_input('Enter password:', type='password')
+        if not (hf_email and hf_pass):
+            st.warning('Please enter your credentials!', icon='⚠️')
+        else:
+            st.success('Proceed to entering your prompt message!', icon='👉')       
+
+# Store LLM generated responses
+if "messages" not in st.session_state.keys():
+    st.session_state.messages = [{"role": "assistant", "content": "How may I help you?"}]
+
+# Display chat messages
+for message in st.session_state.messages:
+    with st.chat_message(message["role"]):
+        st.write(message["content"])
+        
+# Function for generating LLM response
+def generate_response(prompt_input, email, passwd):
+    # Hugging Face Login
+    sign = Login(email, passwd)
+    cookies = sign.login()
+    # Create ChatBot                        
+    chatbot = hugchat.ChatBot(cookies=cookies.get_dict())
+    return chatbot.chat(prompt_input)
+             
+
+
+#Defining Prompt
 
 def format_prompt(message, history):
+    
     prompt = "<s>"
     for user_prompt, bot_response in history:
         print("history:",history)
@@ -22,6 +62,28 @@ def format_prompt(message, history):
     prompt += f"[INST] {message} [/INST]"
     
     return prompt
+if prompt := st.chat_input(disabled=not (hf_email and hf_pass)):
+    st.session_state.messages.append({"role": "user", "content": prompt})
+    with st.chat_message("user"):
+        st.write(prompt)
+
+
+# User-provided prompt
+if prompt := st.chat_input(disabled=not (hf_email and hf_pass)):
+    st.session_state.messages.append({"role": "user", "content": prompt})
+    with st.chat_message("user"):
+        st.write(prompt)
+
+# Generate a new response if last message is not from assistant
+if st.session_state.messages[-1]["role"] != "assistant":
+    with st.chat_message("assistant"):
+        with st.spinner("Thinking..."):
+            response = generate_response(prompt, hf_email, hf_pass) 
+            st.write(response) 
+    message = {"role": "assistant", "content": response}
+    st.session_state.messages.append(message)
+
+#generating Prompt
 
 def generate(
     prompt, history, temperature=0.9, max_new_tokens=256, top_p=0.95, repetition_penalty=1.0,
@@ -67,11 +129,10 @@ def generate(
     with open(f"{file_name}.json", "w") as json_file:
         json_file.write(json_data)
     os.chdir(r'C:\Users\Yuvraj\Desktop\AgriChat2')
-    return output
-
+    return output 
 
 additional_inputs=[
-    gr.Slider(
+    st.Slider(
         label="Temperature",
         value=0.9,
         minimum=0.0,
@@ -80,7 +141,7 @@ additional_inputs=[
         interactive=True,
         info="Higher values produce more diverse outputs",
     ),
-    gr.Slider(
+    st.Slider(
         label="Max new tokens",
         value=256,
         minimum=0,
@@ -89,7 +150,7 @@ additional_inputs=[
         interactive=True,
         info="The maximum numbers of new tokens",
     ),
-    gr.Slider(
+    st.Slider(
         label="Top-p (nucleus sampling)",
         value=0.90,
         minimum=0.0,
@@ -98,7 +159,7 @@ additional_inputs=[
         interactive=True,
         info="Higher values sample more low-probability tokens",
     ),
-    gr.Slider(
+    st.Slider(
         label="Repetition penalty",
         value=1.2,
         minimum=1.0,
@@ -108,11 +169,3 @@ additional_inputs=[
         info="Penalize repeated tokens",
     )
 ]
-
-
-gr.ChatInterface(
-    fn=generate,
-    chatbot=gr.Chatbot(show_label=False, show_share_button=False, show_copy_button=True, likeable=True, layout="panel"),
-    additional_inputs=additional_inputs,
-    title="""AgriChat"""
-).launch(show_api=False)

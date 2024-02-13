@@ -2,7 +2,7 @@ huggingface_hub
 gradio
 pypdf
 langchain
-torch
+hugchat==0.0.8
 accelerate
 bitsandbytes
 ctransformers
