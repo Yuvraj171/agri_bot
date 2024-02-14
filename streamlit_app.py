@@ -69,10 +69,10 @@ if prompt := st.chat_input(disabled=not (hf_email and hf_pass)):
 
 
 # User-provided prompt
-if prompt := st.chat_input(key="user_input1", disabled=not (hf_email and hf_pass)):
-    st.session_state.messages.append({"role": "user", "content": prompt})
-    with st.chat_message("user"):
-        st.write(prompt)  
+# if prompt := st.chat_input(key="user_input1", disabled=not (hf_email and hf_pass)):
+#     st.session_state.messages.append({"role": "user", "content": prompt})
+#     with st.chat_message("user"):
+#         st.write(prompt)  
 
 # User-provided prompt (second instance)
 if prompt := st.chat_input(key="user_input2", disabled=not (hf_email and hf_pass)):
