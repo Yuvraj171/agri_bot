@@ -6,6 +6,8 @@ import os
 from huggingface_hub import InferenceClient
 import gradio as gr
 import time
+from matplotlib.colors import CSS4_COLORS
+
 my_db ={}
 client = InferenceClient(
     "mistralai/Mistral-7B-Instruct-v0.1"
@@ -114,5 +116,6 @@ gr.ChatInterface(
     fn=generate,
     chatbot=gr.Chatbot(show_label=False, show_share_button=False, show_copy_button=True, likeable=True, layout="panel"),
     additional_inputs=additional_inputs,
-    title="""AgriChat"""
+    title="""AgriChat""",
+    css= "style.css"
 ).launch(show_api=False)
