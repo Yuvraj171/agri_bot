@@ -68,48 +68,48 @@ def generate(
 
     with open(f"{file_name}.json", "w") as json_file:
         json_file.write(json_data)
-    os.chdir(r'C:\Users\Yuvraj\Desktop\AgriChat2')
+    os.chdir(r'C:\Users\Yuvraj Singh\Desktop\agri_bot')
     return output
 
 
-# additional_inputs=[
-#     gr.Slider(
-#         label="Temperature",
-#         value=0.9,
-#         minimum=0.0,
-#         maximum=1.0,
-#         step=0.05,
-#         interactive=True,
-#         info="Higher values produce more diverse outputs",
-#     ),
-#     gr.Slider(
-#         label="Max new tokens",
-#         value=256,
-#         minimum=0,
-#         maximum=1048,
-#         step=64,
-#         interactive=True,
-#         info="The maximum numbers of new tokens",
-#     ),
-#     gr.Slider(
-#         label="Top-p (nucleus sampling)",
-#         value=0.90,
-#         minimum=0.0,
-#         maximum=1,
-#         step=0.05,
-#         interactive=True,
-#         info="Higher values sample more low-probability tokens",
-#     ),
-#     gr.Slider(
-#         label="Repetition penalty",
-#         value=1.2,
-#         minimum=1.0,
-#         maximum=2.0,
-#         step=0.05,
-#         interactive=True,
-#         info="Penalize repeated tokens",
-#     )
-# ]
+additional_inputs=[
+    gr.Slider(
+        label="Temperature",
+        value=0.9,
+        minimum=0.0,
+        maximum=1.0,
+        step=0.05,
+        interactive=True,
+        info="Higher values produce more diverse outputs",
+    ),
+    gr.Slider(
+        label="Max new tokens",
+        value=256,
+        minimum=0,
+        maximum=1048,
+        step=64,
+        interactive=True,
+        info="The maximum numbers of new tokens",
+    ),
+    gr.Slider(
+        label="Top-p (nucleus sampling)",
+        value=0.90,
+        minimum=0.0,
+        maximum=1,
+        step=0.05,
+        interactive=True,
+        info="Higher values sample more low-probability tokens",
+    ),
+    gr.Slider(
+        label="Repetition penalty",
+        value=1.2,
+        minimum=1.0,
+        maximum=2.0,
+        step=0.05,
+        interactive=True,
+        info="Penalize repeated tokens",
+    )
+]
 
 
 gr.ChatInterface(
