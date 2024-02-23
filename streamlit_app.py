@@ -10,37 +10,65 @@ my_db ={}
 client = InferenceClient(
     "mistralai/Mistral-7B-Instruct-v0.1"
 )
+    
 
-# Initialize the generator only once to avoid reloading the model on each interaction
-if 'generator' not in st.session_state:
-    st.session_state['generator'] = pipeline("text-generation", model="mistralai/Mistral-7B-Instruct-v0.1")
-
-# Initialize an empty chat history if it doesn't exist in session state
-if 'chat_history' not in st.session_state:
-    st.session_state['chat_history'] = []
-
-chat_history_folder = "chat_history"
-
-# Ensure the chat history folder exists
-if not os.path.exists(chat_history_folder):
-    os.makedirs(chat_history_folder)
-
-def format_prompt(message):
+def format_prompt(message, history):
     prompt = "<s>"
-    for user_prompt, bot_response in st.session_state['chat_history']:
+    for user_prompt, bot_response in history:
+        print("history:",history)
         prompt += f"[INST] {user_prompt} [/INST]"
         prompt += f" {bot_response}</s> "
+        my_db[user_prompt]=bot_response
     prompt += f"[INST] {message} [/INST]"
+    
     return prompt
 
-def generate(prompt, temperature=0.9, max_new_tokens=256, top_p=0.95, repetition_penalty=1.0):
-    formatted_prompt = format_prompt(prompt)
-    output = st.session_state['generator'](formatted_prompt, max_length=100)[0]["generated_text"]
-    # Append the latest interaction to the chat history
-    st.session_state['chat_history'].append((prompt, output))
-    
-    # Optionally, save conversation history to a file periodically or based on a trigger
+def generate(
+    prompt, history, temperature=0.9, max_new_tokens=256, top_p=0.95, repetition_penalty=1.0,
+):
+    temperature = float(temperature)
+    if temperature < 1e-2:
+        temperature = 1e-2
+    top_p = float(top_p)
+
+    generate_kwargs = dict(
+        temperature=temperature,
+        max_new_tokens=max_new_tokens,
+        top_p=top_p,
+        repetition_penalty=repetition_penalty,
+        do_sample=True,
+        seed=42,
+    )
+
+    formatted_prompt = format_prompt(prompt, history)
+
+    stream = client.text_generation(formatted_prompt, **generate_kwargs, stream=True, details=True, return_full_text=False)
+    output = ""
+
+    for response in stream:
+        output += response.token.text
+        yield output
+    my_db[prompt]=output
+    print(my_db)
+    os.chdir('./chat data')
+    _file_name=""
+    for  i in time.ctime().split(" "):
+        _file_name += i
+    file_name =""
+    for i,name in enumerate(_file_name.split(":")):
+        if i<=0:
+            file_name+=name
+        else:
+            file_name+='_'+name
+    print(file_name)
+
+    json_data = json.dumps(my_db, indent=4)  # `indent` for pretty formatting (optional)
+
+    with open(f"{file_name}.json", "w") as json_file:
+        json_file.write(json_data)
+    os.chdir(r'C:\Users\Yuvraj Singh\Desktop\agri_bot')
     return output
+
 
 def main():
     st.title("AgriChat: Your Agricultural Assistant")

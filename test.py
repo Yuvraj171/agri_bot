@@ -1,83 +1,69 @@
 import json
 import os
-from huggingface_hub import InferenceClient
-import gradio as gr
 import time
-from matplotlib.colors import CSS4_COLORS
+import streamlit as st
+from streamlit_chat import message
+import requests
 
-my_db = {}
-client = InferenceClient("mistralai/Mistral-7B-Instruct-v0.1")
-
-def format_prompt(message, history):
-    prompt = "<s>"
-    for user_prompt, bot_response in history:
-        print("history:", history)
-        prompt += f"[INST] {user_prompt} [/INST]"
-        prompt += f" {bot_response}</s> "
-        my_db[user_prompt] = bot_response
-    prompt += f"[INST] {message} [/INST]"
-    return prompt
-
-def generate(prompt, history, temperature=0.9, max_new_tokens=256, top_p=0.95, repetition_penalty=1.0):
-    temperature = float(temperature)
-    if temperature < 1e-2:
-        temperature = 1e-2
-    top_p = float(top_p)
-
-    generate_kwargs = {
-        "temperature": temperature,
-        "max_new_tokens": max_new_tokens,
-        "top_p": top_p,
-        "repetition_penalty": repetition_penalty,
-        "do_sample": True,
-        "seed": 42,
+def query(payload, conversation_history):
+    history_str = " ".join([f"User: {user_msg} , Assistant: {assistant_msg}" for user_msg, assistant_msg in conversation_history])
+    headers = {"Authorization": f"Bearer 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"}
+    API_URL = "https://api-inference.huggingface.co/models/mistralai/Mixtral-8x7B-Instruct-v0.1"
+    
+    json_body = {
+        "inputs": f"[INST] <<SYS>> Your job is to talk like a farming assistant for a farmer. Every response must sound like the same. Also, do remember the previous conversation {history_str} and answer accordingly <<SYS>> User: {payload} Assistant: [/INST]",
+        "parameters": {"max_new_tokens": 128, "top_p": 0.9, "temperature": 0.7}
     }
+    
+    response = requests.post(API_URL, headers=headers, json=json_body)
+    return response.json()
 
-    formatted_prompt = format_prompt(prompt, history)
+def save_conversation_to_file(conversation_history):
+    """Append the conversation history to a JSON file based on today's date."""
+    date_today = time.strftime("%Y-%m-%d")
+    filename = f"conversation_{date_today}.json"
+    filepath = os.path.join("./chat data", filename)  # Adjust the path as needed
+    
+    os.makedirs(os.path.dirname(filepath), exist_ok=True) # Ensure directory exists
+    
+    if os.path.exists(filepath):
+        # File exists, read the current content and append
+        with open(filepath, 'r') as f:
+            existing_content = json.load(f)
+        existing_content.extend(conversation_history)
+        with open(filepath, 'w') as f:
+            json.dump(existing_content, f, indent=4)
+    else:
+        # File does not exist, create a new one
+        with open(filepath, 'w') as f:
+            json.dump(conversation_history, f, indent=4)
+    print(f"Conversation updated in {filepath}")
 
-    stream = client.text_generation(formatted_prompt, **generate_kwargs, stream=True, details=True, return_full_text=False)
-    output = ""
+def main():
+    st.set_page_config(
+        page_title="AgriChat",
+        page_icon="🌾",  # Changed to an ear of rice emoji
+        layout="wide",
+    )
+    st.header("AgriChat 🌾")
+    if 'conversation_history' not in st.session_state:
+        st.session_state.conversation_history = []
 
-    for response in stream:
-        output += response.token.text
-        yield output
-    my_db[prompt] = output
-    print(my_db)
-    os.chdir('./chat data')
-    _file_name = ""
-    for i in time.ctime().split(" "):
-        _file_name += i
-    file_name = ""
-    for i, name in enumerate(_file_name.split(":")):
-        if i <= 0:
-            file_name += name
-        else:
-            file_name += '_' + name
-    print(file_name)
+    message("Good Morning, How can i assist you today!")
+    
+    prompt = st.text_input("Enter your prompt:", key="user_prompt")
+    if prompt:
+        with st.spinner("Thinking..."):
+            data = query(prompt, st.session_state.conversation_history)
+            res = data[0]['generated_text'].split('[/INST]')[1]
+            st.session_state.conversation_history.append((prompt, res))
+        
+        # Save or update the conversation history in a JSON file
+        save_conversation_to_file([(prompt, res)])
 
-    json_data = json.dumps(my_db, indent=4)  # `indent` for pretty formatting (optional)
+    for i, (user_msg, bot_msg) in enumerate(st.session_state.conversation_history):
+        message(user_msg, is_user=True, key=f"user_{i}")
+        message(bot_msg, is_user=False, key=f"bot_{i}")
 
-    with open(f"{file_name}.json", "w") as json_file:
-        json_file.write(json_data)
-    os.chdir('C:\\Users\\Yuvraj Singh\\Desktop\\agri_bot')
-    return output
-
-# Direct CSS template
-
-# CSS string
-custom_css = """
-body {
-    background-image: url('https://www.logineko.com/wp-content/uploads/2023/10/organic-cereals-768x513.webp');
-    background-size: cover;
-    background-position: center;
-    background-repeat: no-repeat;
-}
-/* Add other custom CSS here */
-"""
-
-gr.ChatInterface(
-    fn=generate,
-    chatbot=gr.Chatbot(show_label=False, show_share_button=False, show_copy_button=True, likeable=True, layout="panel"),
-    title="AgriChat",
-    css=custom_css  # Inject your custom CSS here
-).launch(show_api=False)
+if __name__ == '__main__':
+    main()
