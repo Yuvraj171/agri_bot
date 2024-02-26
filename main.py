@@ -51,7 +51,8 @@ def main():
 
     message("Good Morning, How can i assist you today!")
     
-    prompt = st.text_input("Enter your prompt:", key="user_prompt")
+    with st.sidebar:
+        prompt = st.text_input("Enter your prompt:", key="user_prompt")
     if prompt:
         with st.spinner("Thinking..."):
             data = query(prompt, st.session_state.conversation_history)

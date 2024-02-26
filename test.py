@@ -5,8 +5,8 @@ import streamlit as st
 from streamlit_chat import message
 import requests
 
-def query(payload, conversation_history):
-    history_str = " ".join([f"User: {user_msg} , Assistant: {assistant_msg}" for user_msg, assistant_msg in conversation_history])
+def query(payload):
+    history_str = " ".join([f"User: {user_msg} , Assistant: {assistant_msg}" for user_msg, assistant_msg in st.session_state.conversation_history])
     headers = {"Authorization": f"Bearer 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"}
     API_URL = "https://api-inference.huggingface.co/models/mistralai/Mixtral-8x7B-Instruct-v0.1"
     
@@ -50,11 +50,11 @@ def main():
         st.session_state.conversation_history = []
 
     message("Good Morning, How can i assist you today!")
-    
-    prompt = st.text_input("Enter your prompt:", key="user_prompt")
+    with st.sidebar:
+        prompt = st.text_input("Enter your prompt:", key="user_prompt")
     if prompt:
         with st.spinner("Thinking..."):
-            data = query(prompt, st.session_state.conversation_history)
+            data = query(prompt)
             res = data[0]['generated_text'].split('[/INST]')[1]
             st.session_state.conversation_history.append((prompt, res))
         
