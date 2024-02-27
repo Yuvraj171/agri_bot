@@ -1,22 +1,41 @@
-from pymongo import MongoClient
-
 import json
 import os
 import time
 import streamlit as st
 from streamlit_chat import message
 import requests
+from langchain_community.vectorstores import FAISS
+from langchain_community.embeddings import HuggingFaceEmbeddings
+from torch import embedding_bag
+
+# Embeddings for searching in FAISS
+embeddings = HuggingFaceEmbeddings(model_name='hkunlp/instructor-large',
+                                   model_kwargs={'device': 'cpu'})
+
+# Load the FAISS database
+DB_FAISS_PATH = 'vectorstore/db_faiss'
+db = FAISS.load_local(DB_FAISS_PATH, embeddings=embeddings)
+# db = FAISS.load_local(DB_FAISS_PATH)
+
+
+
+threshold_distance = 0.7
+
+def search_db(prompt):
+    vector = embeddings.embed([prompt])[0]
+    distances, indices = db.search(vector, k=1)  # Adjust 'k' based on how many results you want
+    if distances[0][0] < threshold_distance:  # Corrected: Removed colon after threshold_distance
+        return db.get_documents(indices[0])[0]['text']
+    return None  # Added: Explicit return None if no document meets the criteria
 
 def query(payload, conversation_history, language):
     history_str = " ".join([f"User: {user_msg} , Assistant: {assistant_msg}" for user_msg, assistant_msg in conversation_history])
     headers = {"Authorization": f"Bearer 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"}
-    # Assume the API endpoint or model might change based on the language; adjust accordingly.
     API_URL = "https://api-inference.huggingface.co/models/mistralai/Mixtral-8x7B-Instruct-v0.1"
     json_body = {
         "inputs": f"[INST] <<SYS>> Your job is to talk like a farming assistant for a farmer in {language}. Every response must sound the same. Also, remember the previous conversation {history_str} and answer accordingly <<SYS>> User: {payload} Assistant: [/INST]",
         "parameters": {"max_new_tokens": 1024, "top_p": 0.9, "temperature": 0.7}
     }
-    
     response = requests.post(API_URL, headers=headers, json=json_body)
     return response.json()
 
@@ -65,12 +84,7 @@ def apply_custom_css():
 
 
 def main():
-    st.set_page_config(
-        page_title="AgriChat",
-        page_icon="🌾",
-        layout="wide",
-    )
-    
+    st.set_page_config(page_title="AgriChat", page_icon="🌾", layout="wide")
     apply_custom_css()
     
     st.header("AgriChat 🌾")
@@ -84,9 +98,14 @@ def main():
         prompt = st.text_input("Enter your prompt:", key="user_prompt")
 
     if prompt:
-        with st.spinner("Thinking..."):
-            data = query(prompt, st.session_state.conversation_history, language)
-            res = data[0]['generated_text'].split('[/INST]')[1]
+        with st.spinner("Searching database..."):
+            db_answer = search_db(prompt)
+            if db_answer:
+                res = db_answer
+            else:
+                with st.spinner("Thinking..."):
+                    data = query(prompt, st.session_state.conversation_history, language)
+                    res = data[0]['generated_text'].split('[/INST]')[1]
             st.session_state.conversation_history.append((prompt, res))
             save_conversation_to_file([(prompt, res)])
 

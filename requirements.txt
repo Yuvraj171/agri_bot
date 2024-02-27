@@ -1,7 +1,7 @@
 huggingface_hub
-gradio
-pypdf
 langchain
+langchain_community
+pypdf
 hugchat==0.0.8
 accelerate
 bitsandbytes
@@ -9,3 +9,5 @@ ctransformers
 sentence_transformers
 faiss_cpu
 streamlit
+tiktoken
+streamlit_chat
