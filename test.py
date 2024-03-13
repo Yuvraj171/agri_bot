@@ -7,7 +7,18 @@ import requests
 import whisper
 import tempfile
 from user_manage import log_activity, register_user, login_user
+from audio_recorder_streamlit import audio_recorder  # Add this import for audio recording
 
+
+
+def ensure_user_database_exists():
+    database_path = "user_database"
+    os.makedirs(database_path, exist_ok=True)
+
+# Update paths to include the 'user_database' folder
+# Correct paths to include the 'user_database' folder
+users_db_path = os.path.join("user_database", "users_db.json")
+activity_log_path = os.path.join("user_database", "activity_log.json")
 
 
 
@@ -48,18 +59,33 @@ def save_conversation_to_file(conversation_history):
 
 
 def apply_custom_css():
-    background_image_url = "https://images.pexels.com/photos/289334/pexels-photo-289334.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1s"
-    st.markdown(f"""
-        <style>
-        .stApp {{
-            background-image: url({background_image_url});
+    background_image_url = "https://images.pexels.com/photos/289334/pexels-photo-289334.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1"
+    # Additional styles for chat messages
+    chat_message_styles = """
+    <style>
+        /* Background styling */
+        .stApp {
+            background-image: url(%s);
             background-size: cover;
-        }}
-        .css-1d391kg {{
-            background: #fff;
-        }}
-        </style>
-        """, unsafe_allow_html=True)
+        }
+        /* Style for the chat message bubbles */
+        .stChatBubble {
+            background-color: rgba(255, 255, 255, 0.8) !important; /* Semi-transparent white */
+            border-radius: 20px !important; /* Rounded corners */
+            border: 1px solid rgba(0, 0, 0, 0.1) !important; /* Light border */
+            padding: 10px 20px !important; /* Adjust padding */
+            max-width: fit-content !important; /* Fit to content */
+            margin: 10px !important; /* Spacing between messages */
+        }
+        /* Style adjustments for the text inside chat bubbles for better readability */
+        .stMarkdown {
+            background-color: transparent !important;
+            padding: 0 !important;
+            margin: 0 !important;
+        }
+    </style>
+    """ % background_image_url
+    st.markdown(chat_message_styles, unsafe_allow_html=True)
 
 
 def transcribe_audio(audio_file):
@@ -106,6 +132,53 @@ def show_registration_page():
         else:
             st.sidebar.error("Registration failed. User might already exist.")
             
+
+def register_user(username, password):
+    # Ensure paths are correct
+    ensure_user_database_exists()
+    users = load_json(users_db_path)  # Using the corrected path
+    if username in users:
+        return False  # User already exists
+    users[username] = password  # Hash passwords in a real application
+    save_json(users_db_path, users)  # Using the corrected path
+    return True
+
+def login_user(username, password):
+    # Ensure paths are correct
+    ensure_user_database_exists()
+    users = load_json(users_db_path)  # Using the corrected path
+    if username in users and users[username] == password:
+        log_activity(username, "login")
+        return True
+    return False
+
+def load_json(filename):
+    # Call here to ensure directory exists before attempting to read
+    ensure_user_database_exists()
+    if os.path.exists(filename):
+        with open(filename, 'r') as file:
+            return json.load(file)
+    return {} if "users_db.json" in filename else []  # Return appropriate empty structure
+
+def save_json(filename, data):
+    # Call here to ensure directory exists before attempting to write
+    ensure_user_database_exists()
+    with open(filename, 'w') as file:
+        json.dump(data, file, indent=4)
+
+# Rest of your functions (register_user, login_user, log_activity, etc.) remain the same
+
+
+def log_activity(username, activity_type):
+    # Ensure paths are correct
+    ensure_user_database_exists()
+    activities = load_json(activity_log_path)  # Using the corrected path
+    current_time = time.strftime("%Y-%m-%d %H:%M:%S")
+    new_activity = {"username": username, "activity_type": activity_type, "timestamp": current_time}
+    activities.append(new_activity)
+    save_json(activity_log_path, activities)  # Using the corrected path
+
+
             
 def chat_interface():
     st.header("AgriChat 🌾 - Chat")
@@ -115,7 +188,7 @@ def chat_interface():
         st.session_state.conversation_history = []
 
     # Input options for the user
-    input_type = st.radio("Choose input type:", ["Text", "Audio"])
+    input_type = st.radio("Choose input type:", ["Text", "Audio", "Record Audio"])  # Add "Record Audio" option
 
     if input_type == "Text":
         user_input = st.text_input("Type your message here:")
@@ -129,10 +202,20 @@ def chat_interface():
                 transcribed_text = transcribe_audio_or_use_text_input(audio_input)
                 handle_user_input(transcribed_text)
 
+    elif input_type == "Record Audio":  # New option for recording audio
+        audio_bytes = audio_recorder()  # Call the audio_recorder function
+        if audio_bytes:
+            # You could play the audio back to the user or proceed directly to transcribing it
+            st.audio(audio_bytes, format="audio/wav")
+            if st.button("Transcribe and Send"):
+                transcribed_text = transcribe_audio_or_use_text_input(None, audio_bytes)
+                handle_user_input(transcribed_text)
+
     # Display the conversation history
     for idx, (user_msg, assistant_msg) in enumerate(st.session_state.conversation_history):
         message(user_msg, is_user=True, key=f"user_{idx}")
         message(assistant_msg, key=f"assistant_{idx}")
+
             
 
 def handle_user_input(input_text):
@@ -157,6 +240,8 @@ def show_logout_interface():
 
 
 def main():
+    # Ensure the user_database folder exists at the start
+    ensure_user_database_exists()
     st.set_page_config(page_title="AgriChat", page_icon="🌾", layout="wide")
     apply_custom_css()
 

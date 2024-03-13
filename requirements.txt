@@ -11,3 +11,4 @@ faiss_cpu
 streamlit
 tiktoken
 streamlit_chat
+streamlit-audio-recorder
