@@ -7,6 +7,7 @@ import requests
 import whisper
 import tempfile
 from user_manage import log_activity, register_user, login_user
+from audio_recorder_streamlit import audio_recorder  # Add this import for audio recording
 
 
 
@@ -24,15 +25,21 @@ activity_log_path = os.path.join("user_database", "activity_log.json")
 def query(payload):
     history_str = " ".join([f"User: {user_msg} , Assistant: {assistant_msg}" for user_msg, assistant_msg in st.session_state.conversation_history])
     headers = {"Authorization": f"Bearer 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"}
-    # Assume the API endpoint or model might change based on the language; adjust accordingly.~
     API_URL = "https://api-inference.huggingface.co/models/mistralai/Mixtral-8x7B-Instruct-v0.1"
     json_body = {
         "inputs": f"[INST] <<SYS>> Your job is to talk like a farming assistant for a farmer. Every response must sound the same. Also, remember the previous conversation {history_str} and answer accordingly <<SYS>> User: {payload} Assistant: [/INST]",
-        "parameters": {"max_new_tokens": 1024, "top_p": 0.9, "temperature": 0.7}
+        "parameters": {"max_new_tokens": 4096, "top_p": 0.9, "temperature": 0.7}
     }
     
     response = requests.post(API_URL, headers=headers, json=json_body)
-    return response.json()
+    
+    # Check the response status code before attempting to decode JSON
+    if response.status_code == 200:
+        return response.json()
+    else:
+        # Handle non-successful responses or log them for debugging
+        print(f"Failed to get a valid response: Status code {response.status_code}, Response text: {response.text}")
+        return {"error": f"API request failed with status code {response.status_code}"}
 
 
 def save_conversation_to_file(conversation_history):
@@ -187,7 +194,7 @@ def chat_interface():
         st.session_state.conversation_history = []
 
     # Input options for the user
-    input_type = st.radio("Choose input type:", ["Text", "Audio"])
+    input_type = st.radio("Choose input type:", ["Text", "Audio", "Record Audio"])  # Add "Record Audio" option
 
     if input_type == "Text":
         user_input = st.text_input("Type your message here:")
@@ -201,10 +208,20 @@ def chat_interface():
                 transcribed_text = transcribe_audio_or_use_text_input(audio_input)
                 handle_user_input(transcribed_text)
 
+    elif input_type == "Record Audio":  # New option for recording audio
+        audio_bytes = audio_recorder()  # Call the audio_recorder function
+        if audio_bytes:
+            # You could play the audio back to the user or proceed directly to transcribing it
+            st.audio(audio_bytes, format="audio/wav")
+            if st.button("Transcribe and Send"):
+                transcribed_text = transcribe_audio_or_use_text_input(None, audio_bytes)
+                handle_user_input(transcribed_text)
+
     # Display the conversation history
     for idx, (user_msg, assistant_msg) in enumerate(st.session_state.conversation_history):
         message(user_msg, is_user=True, key=f"user_{idx}")
         message(assistant_msg, key=f"assistant_{idx}")
+
             
 
 def handle_user_input(input_text):
