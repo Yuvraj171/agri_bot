@@ -8,8 +8,11 @@ activity_log_path = "activity_log.json"
 def load_json(filename):
     if os.path.exists(filename):
         with open(filename, 'r') as file:
-            return json.load(file)
-    return {}
+            try:
+                return json.load(file)
+            except json.JSONDecodeError:
+                return [] if filename == activity_log_path else {}
+    return [] if filename == activity_log_path else {}
 
 def save_json(filename, data):
     with open(filename, 'w') as file:
