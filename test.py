@@ -38,29 +38,48 @@ def query(payload):
         return {"error": f"API request failed with status code {response.status_code}"}
 
 def apply_custom_css():
-    background_image_url = "https://images.pexels.com/photos/289334/pexels-photo-289334.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1"
-    chat_message_styles = """
+    background_image_url = "https://ideogram.ai/api/images/direct/FnjrEUIXQUqCwRYC-BkEtg.png"
+    chat_message_styles = f"""
     <style>
-        .stApp {
-            background-image: url(%s);
+        .stApp {{
+            background-image: url({background_image_url});
             background-size: cover;
-        }
-        .stChatBubble {
-            background-color: rgba(255, 255, 255, 0.8) !important;
-            border-radius: 20px !important;
-            border: 1px solid rgba(0, 0, 0, 0.1) !important;
-            padding: 10px 20px !important;
-            max-width: fit-content !important;
-            margin: 10px !important;
-        }
-        .stMarkdown {
+            background-repeat: no-repeat;
+            background-attachment: fixed;
+        }}
+        /* Adjust chat bubble transparency and text color */
+        div[role="list"] > div:first-child {{
+            background-color: rgba(255, 255, 255, 0.8) !important; /* Semi-transparent white for user message */
+            color: #000; /* Dark text for readability */
+        }}
+        div[role="list"] > div:last-child {{
+            background-color: rgba(245, 245, 245, 0.8) !important; /* Semi-transparent grey for bot message */
+            color: #000; /* Dark text for readability */
+        }}
+
+        /* Ensure all text is readable */
+        .stTextInput > div {{
+            color: #000; /* Dark text for input boxes */
+        }}
+
+        /* Set all static text to be dark for readability */
+        .stMarkdown, .stText, .stTextArea, .stSubheader, .stHeader {{
+            color: #000 !important;
+        }}
+
+        /* Remove background from Streamlit's default containers */
+        .css-1lcbmhc, .css-1v3fvcr, .css-1d391kg {{
             background-color: transparent !important;
-            padding: 0 !important;
-            margin: 0 !important;
-        }
+        }}
+
+        /* Additional styles can be added as needed */
     </style>
-    """ % background_image_url
+    """
     st.markdown(chat_message_styles, unsafe_allow_html=True)
+
+
+
+
 
 def transcribe_audio(audio_file):
     model = whisper.load_model("base")
@@ -101,40 +120,46 @@ def log_activity(username, activity_type):
 
             
 def chat_interface():
-    st.header("AgriChat 🌾 - Chat")
+    st.header("AgriBot 🌾 - Chat")
 
-    # Check for existing conversation history in the session state
     if 'conversation_history' not in st.session_state:
         st.session_state.conversation_history = []
-
-    # Input options for the user
-    input_type = st.radio("Choose input type:", ["Text", "Audio", "Record Audio"])  # Add "Record Audio" option
-
-    if input_type == "Text":
-        user_input = st.text_input("Type your message here:")
-        if st.button("Send"):
-            handle_user_input(user_input)
-
-    elif input_type == "Audio":
-        audio_input = st.file_uploader("Upload an audio file", type=["mp3", "wav", "ogg"])
-        if st.button("Transcribe and Send"):
-            if audio_input is not None:
-                transcribed_text = transcribe_audio_or_use_text_input(audio_input)
-                handle_user_input(transcribed_text)
-
-    elif input_type == "Record Audio":  # New option for recording audio
-        audio_bytes = audio_recorder()  # Call the audio_recorder function
-        if audio_bytes:
-            # You could play the audio back to the user or proceed directly to transcribing it
-            st.audio(audio_bytes, format="audio/wav")
-            if st.button("Transcribe and Send"):
-                transcribed_text = transcribe_audio_or_use_text_input(None, audio_bytes)
-                handle_user_input(transcribed_text)
 
     # Display the conversation history
     for idx, (user_msg, assistant_msg) in enumerate(st.session_state.conversation_history):
         message(user_msg, is_user=True, key=f"user_{idx}")
         message(assistant_msg, key=f"assistant_{idx}")
+
+    # Create some vertical space before the input box
+    for _ in range(10):  # Adjust the range for more or less space
+        st.write("")  # Each call adds a bit of vertical space
+
+    input_type = st.radio("Choose input type:", ["Text", "Audio", "Record Audio"], key='input_type_selection')
+
+    with st.form(key='message_form'):
+        user_input, audio_input, audio_bytes = None, None, None
+        
+        if input_type == "Text":
+            user_input = st.text_input("Type your message here:", key="text_input")
+        elif input_type == "Audio":
+            audio_input = st.file_uploader("Upload an audio file", type=["mp3", "wav", "ogg"], key="audio_uploader")
+        elif input_type == "Record Audio":
+            audio_bytes = audio_recorder(key="audio_recorder")
+        
+        submit_button = st.form_submit_button("Send")
+
+    if submit_button:
+        if input_type == "Text" and user_input:
+            handle_user_input(user_input)
+        elif input_type == "Audio" and audio_input:
+            transcribed_text = transcribe_audio_or_use_text_input(audio_input)
+            handle_user_input(transcribed_text)
+        elif input_type == "Record Audio" and audio_bytes:
+            st.audio(audio_bytes, format="audio/wav")
+            transcribed_text = transcribe_audio_or_use_text_input(None, audio_bytes)
+            handle_user_input(transcribed_text)
+
+
 
             
 
@@ -158,32 +183,43 @@ def show_logout_interface():
         st.experimental_rerun()
         
 
+def show_login_page():
+    st.subheader("Login")
+    username = st.text_input("Username")
+    password = st.text_input("Password", type="password")
+    if st.button("Login"):
+        # Perform login logic
+        ...
+
+def show_registration_page():
+    st.subheader("Register")
+    username = st.text_input("Choose a username", key="register_username")
+    password = st.text_input("Choose a password", type="password", key="register_password")
+    if st.button("Create account"):
+        # Perform registration logic
+        ...
 
 def main():
-    # Ensure the user_database folder exists at the start
     ensure_user_database_exists()
     st.set_page_config(page_title="AgriChat", page_icon="🌾", layout="wide")
     apply_custom_css()
 
-    if "authenticated" not in st.session_state:
-        st.session_state["authenticated"] = False
+    if "authenticated" not in st.session_state or not st.session_state["authenticated"]:
+        col1, col2, col3 = st.columns([1, 2, 1])
 
-    menu_items = ["Home", "Login", "Register"]
-    if st.session_state["authenticated"]:
-        menu_items.append("Chat")
-    choice = st.sidebar.selectbox("Menu", menu_items)
+        with col2:
+            st.image("background/logo.png", width=100)  # If you have a logo to display
+            st.subheader("Welcome to AgriBot 🌾")
 
-    if choice == "Home":
-        st.subheader("Welcome to AgriChat 🌾")
-    elif choice == "Login":
-        show_login_page()
-    elif choice == "Register":
-        show_registration_page()
-    elif choice == "Chat":
-        if st.session_state["authenticated"]:
-            chat_interface()
-        else:
-            st.warning("Please login to access the chat.")
+            # Choose between login and registration
+            form_selection = st.radio("Choose an option:", ["Login", "Register"])
+
+            if form_selection == "Login":
+                show_login_page()
+            elif form_selection == "Register":
+                show_registration_page()
+    else:
+        chat_interface()
 
 if __name__ == "__main__":
     main()
