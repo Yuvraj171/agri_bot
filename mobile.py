@@ -38,35 +38,68 @@ def query(payload):
         return {"error": f"API request failed with status code {response.status_code}"}
 
 def apply_custom_css():
-    background_image_url = "https://images.pexels.com/photos/289334/pexels-photo-289334.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1"
-    chat_message_styles = """
+    background_image_url = "https://ideogram.ai/api/images/direct/FnjrEUIXQUqCwRYC-BkEtg.png"
+    chat_message_styles = f"""
     <style>
-        .stApp {
-            background-image: url(%s);
+        .stApp {{
+            background-image: url({background_image_url});
             background-size: cover;
             background-repeat: no-repeat;
             background-attachment: fixed;
-        }
-        /* Adjust chat bubble transparency */
-        div[role="list"] > div:first-child {
-            background-color: rgba(255, 255, 255, 0.8) !important; /* Semi-transparent white for user message */
-        }
-        div[role="list"] > div:last-child {
-            background-color: rgba(245, 245, 245, 0.8) !important; /* Semi-transparent grey for bot message */
-        }
+        }}
 
-        /* Adjust text color for better visibility if needed */
-        div[role="list"] div[data-testid="stMarkdownContainer"] {
-            color: #000; /* Change as needed for your design */
-        }
+        /* Custom styles for radio buttons to make them bolder and bigger */
+        .stRadio > div > label {{
+            font-size: 25px; /* Increase font size */
+            font-weight: bold; /* Make font bolder */
+        }}
 
-        /* Remove background from Streamlit's default containers */
-        .css-1lcbmhc, .css-1v3fvcr, .css-1d391kg {
-            background-color: transparent !important;
-        }
+        /* Enhanced visibility for headings */
+        .stHeader, .stSubheader {{
+            color: #ffffff; /* White text for better contrast */
+            background-color: #007BFF; /* Example background color */
+            padding: 10px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }}
+
+        /* Ensure text fields are easily readable */
+        .stTextInput > div > div > input, .stPassword > div > div > input {{
+            background-color: rgba(255, 255, 255, 1) !important;
+            color: #000;
+            border-radius: 4px;
+            border: 1px solid #ced4da;
+            padding: 10px;
+        }}
+        
+        .login-highlight {{
+            font-size: 24px !important;
+            font-weight: bold !important;
+            color: #000000; /* Black color */
+            background-color: rgba(255, 255, 255, 0.5); /* Translucent white background */
+            padding: 5px 10px; /* Slightly larger padding for visual appeal */
+            border-radius: 5px; /* Rounded corners */
+            margin: 10px 0; /* Margins to separate from surrounding content */
+            display: inline-block; /* Ensure the background only surrounds the text */
+        }}
+        
+        /* Adjusted styles for Log-In and Registration */
+        .login-highlight, .registration-highlight {{
+            font-size: 28px !important; /* Increased font size */
+            font-weight: bold !important;
+            color: #000000; /* Black color */
+            background-color: rgba(255, 255, 255, 0.5); /* Translucent white background */
+            padding: 5px 10px; /* Padding around the text */
+            border-radius: 5px; /* Rounded corners */
+            margin: 10px 0; /* Margins to separate from surrounding content */
+            display: inline-block; /* Ensure the background only surrounds the text */
+        }}
+
     </style>
-    """ % background_image_url
+    """
     st.markdown(chat_message_styles, unsafe_allow_html=True)
+
+
 
 
 
@@ -173,32 +206,94 @@ def show_logout_interface():
         st.experimental_rerun()
         
 
+def show_login_page():
+    # Use "Log-In" instead of "Login" and apply the 'login-highlight' class
+    st.markdown('<div class="login-highlight">Log-In</div>', unsafe_allow_html=True)
+    
+    username = st.text_input("", placeholder="Enter your username", key="login_username")
+    password = st.text_input("", type="password", placeholder="Enter your password", key="login_password")
+    
+    if st.button("Login"):
+        if login_user(username, password):
+            st.session_state["authenticated"] = True
+            st.session_state["username"] = username
+            st.success("Logged in successfully!")
+            st.experimental_rerun()
+        else:
+            st.error("Login failed. Please check your username and password.")
+
+
+
+
+def show_registration_page():
+    # Use "Register" text and apply the 'registration-highlight' class
+    st.markdown('<div class="registration-highlight">Register</div>', unsafe_allow_html=True)
+    
+    username = st.text_input("", placeholder="Choose your username", key="register_username")
+    password = st.text_input("", type="password", placeholder="Choose your password", key="register_password")
+    
+    if st.button("Create account"):
+        if register_user(username, password):
+            st.session_state["authenticated"] = True
+            st.session_state["username"] = username
+            st.success("Account created successfully! You're now logged in.")
+            st.experimental_rerun()
+        else:
+            st.error("Registration failed. Username might already exist.")
+
+
+
 
 def main():
     ensure_user_database_exists()
     st.set_page_config(page_title="AgriChat", page_icon="🌾", layout="wide")
     apply_custom_css()
 
-    if "authenticated" not in st.session_state:
-        st.session_state["authenticated"] = False
+    if "authenticated" not in st.session_state or not st.session_state["authenticated"]:
+        col1, col2, col3 = st.columns([1, 2, 1])
 
-    if st.session_state["authenticated"]:
-        menu_items = ["Home", "Chat", "Logout"]
+        with col2:
+            st.image("background/logo.png", width=100)  # Ensure the path is correct
+
+            # Updated CSS with minimal padding
+            st.markdown("""
+                <style>
+                    .welcome-text, .option-text {
+                        color: #000000; /* Black color */
+                        background-color: rgba(255, 255, 255, 0.5); /* Translucent white background */
+                        padding: 2px 5px; /* Reduced padding around the text */
+                        border-radius: 5px; /* Rounded corners */
+                        display: inline; /* Align highlight with text */
+                        margin: 0; /* Remove default margins */
+                    }
+                    .welcome-text {
+                        font-size:50px !important;
+                        font-weight: bold !important;
+                    }
+                    .option-text {
+                        font-size:28px !important;
+                        font-weight: bold !important;
+                    }
+                </style>
+                """, unsafe_allow_html=True)
+
+            # Use markdown to insert styled text without additional space
+            st.markdown('<div class="welcome-text">Welcome to AgriBot 🌾</div>', unsafe_allow_html=True)
+            
+            # Ensuring there's a break between the welcome message and the options
+            st.write("")
+            
+            st.markdown('<div class="option-text">Choose an option:</div>', unsafe_allow_html=True)
+            
+            # Radio buttons without a label, as the label is now part of the styled markdown above
+            form_selection = st.radio("", ["Login", "Register"], horizontal=True)
+
+            if form_selection == "Login":
+                show_login_page()
+            elif form_selection == "Register":
+                show_registration_page()
     else:
-        menu_items = ["Home", "Login", "Register"]
-
-    choice = st.sidebar.selectbox("Menu", menu_items)
-
-    if choice == "Home":
-        st.subheader("Welcome to AgriBot 🌾")
-    elif choice == "Login":
-        show_login_page()
-    elif choice == "Register":
-        show_registration_page()
-    elif choice == "Chat":
         chat_interface()
-    elif choice == "Logout":
-        show_logout_interface()
 
 if __name__ == "__main__":
     main()

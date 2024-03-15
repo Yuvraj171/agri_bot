@@ -1,5 +1,6 @@
 import os
 import time
+from turtle import position
 import streamlit as st
 from streamlit_chat import message
 import requests
@@ -46,36 +47,38 @@ def apply_custom_css():
             background-size: cover;
             background-repeat: no-repeat;
             background-attachment: fixed;
-        }}
-        /* Adjust chat bubble transparency and text color */
-        div[role="list"] > div:first-child {{
-            background-color: rgba(255, 255, 255, 0.8) !important; /* Semi-transparent white for user message */
-            color: #000; /* Dark text for readability */
-        }}
-        div[role="list"] > div:last-child {{
-            background-color: rgba(245, 245, 245, 0.8) !important; /* Semi-transparent grey for bot message */
-            color: #000; /* Dark text for readability */
+            position: relative;
         }}
 
-        /* Ensure all text is readable */
-        .stTextInput > div {{
-            color: #000; /* Dark text for input boxes */
+        .stApp:before {{
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.1); /* Adding a black overlay with 10% opacity to dull the image */
+            mix-blend-mode: multiply; /* Ensures the overlay mixes well with the background image */
         }}
 
-        /* Set all static text to be dark for readability */
-        .stMarkdown, .stText, .stTextArea, .stSubheader, .stHeader {{
-            color: #000 !important;
+        /* Ensure the content is not affected by the overlay */
+        .streamlit-expanderHeader, .stTextInput, .stSelectbox, .stRadio, .stButton, .stSlider, .stDateInput, .stTimeInput {
+            position: relative;
+            z-index: 1;
+        }
+
+        /* Custom styles for radio buttons to make them bolder and bigger */
+        .stRadio > div > label {{
+            font-size: 25px; /* Increase font size */
+            font-weight: bold; /* Make font bolder */
         }}
 
-        /* Remove background from Streamlit's default containers */
-        .css-1lcbmhc, .css-1v3fvcr, .css-1d391kg {{
-            background-color: transparent !important;
-        }}
+        /* Additional custom styles */
 
-        /* Additional styles can be added as needed */
     </style>
     """
     st.markdown(chat_message_styles, unsafe_allow_html=True)
+
 
 
 
@@ -183,21 +186,41 @@ def show_logout_interface():
         st.experimental_rerun()
         
 
-def show_login_page():
-    st.subheader("Login")
-    username = st.text_input("Username")
-    password = st.text_input("Password", type="password")
-    if st.button("Login"):
-        # Perform login logic
-        ...
+
 
 def show_registration_page():
-    st.subheader("Register")
-    username = st.text_input("Choose a username", key="register_username")
-    password = st.text_input("Choose a password", type="password", key="register_password")
+    # Use "Register" text and apply the 'registration-highlight' class
+    st.markdown('<div class="registration-highlight">Register</div>', unsafe_allow_html=True)
+    
+    username = st.text_input("", placeholder="Choose your username", key="register_username")
+    password = st.text_input("", type="password", placeholder="Choose your password", key="register_password")
+    
     if st.button("Create account"):
-        # Perform registration logic
-        ...
+        if register_user(username, password):
+            st.session_state["authenticated"] = True
+            st.session_state["username"] = username
+            st.success("Account created successfully! You're now logged in.")
+            st.experimental_rerun()
+        else:
+            st.error("Registration failed. Username might already exist.")
+
+
+def show_login_page():
+    # Use "Log-In" instead of "Login" and apply the 'login-highlight' class
+    st.markdown('<div class="login-highlight">Log-In</div>', unsafe_allow_html=True)
+    
+    username = st.text_input("", placeholder="Enter your username", key="login_username")
+    password = st.text_input("", type="password", placeholder="Enter your password", key="login_password")
+    
+    if st.button("Login"):
+        if login_user(username, password):
+            st.session_state["authenticated"] = True
+            st.session_state["username"] = username
+            st.success("Logged in successfully!")
+            st.experimental_rerun()
+        else:
+            st.error("Login failed. Please check your username and password.")
+
 
 def main():
     ensure_user_database_exists()
@@ -208,11 +231,40 @@ def main():
         col1, col2, col3 = st.columns([1, 2, 1])
 
         with col2:
-            st.image("background/logo.png", width=100)  # If you have a logo to display
-            st.subheader("Welcome to AgriBot 🌾")
+            st.image("background/logo.png", width=100)  # Ensure the path is correct
 
-            # Choose between login and registration
-            form_selection = st.radio("Choose an option:", ["Login", "Register"])
+            # Updated CSS with minimal padding
+            st.markdown("""
+                <style>
+                    .welcome-text, .option-text {
+                        color: #000000; /* Black color */
+                        background-color: rgba(255, 255, 255, 0.2); /* Translucent white background */
+                        padding: 2px 2px; /* Reduced padding around the text */
+                        border-radius: 5px; /* Rounded corners */
+                        display: inline; /* Align highlight with text */
+                        margin: 0; /* Remove default margins */
+                    }
+                    .welcome-text {
+                        font-size:50px !important;
+                        font-weight: bold !important;
+                    }
+                    .option-text {
+                        font-size:28px !important;
+                        font-weight: bold !important;
+                    }
+                </style>
+                """, unsafe_allow_html=True)
+
+            # Use markdown to insert styled text without additional space
+            st.markdown('<div class="welcome-text">Welcome to AgriBot 🌾</div>', unsafe_allow_html=True)
+            
+            # Ensuring there's a break between the welcome message and the options
+            st.write("")
+            
+            st.markdown('<div class="option-text">Choose an option:</div>', unsafe_allow_html=True)
+            
+            # Radio buttons without a label, as the label is now part of the styled markdown above
+            form_selection = st.radio("", ["Login", "Register"], horizontal=True)
 
             if form_selection == "Login":
                 show_login_page()
