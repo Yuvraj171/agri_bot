@@ -1,3 +1,4 @@
+import json
 import os
 import time
 import streamlit as st
@@ -119,36 +120,73 @@ def transcribe_audio_or_use_text_input(audio_file, text_input=None):
         return text_input
 
 def register_user(username, password):
-    users_collection = db["users"]
-    if users_collection.find_one({"username": username}):
-        return False  # User already exists
+    users_file_path = os.path.join("user_database", "users.json")
+    
+    # Load existing users
+    if os.path.exists(users_file_path):
+        with open(users_file_path, 'r') as file:
+            users = json.load(file)
     else:
-        users_collection.insert_one({"username": username, "password": password})
-        return True
+        users = {}
+    
+    # Check if the user already exists
+    if username in users:
+        return False  # User already exists
+    
+    # Add the new user
+    users[username] = password
+    
+    # Save the updated users back to the file
+    with open(users_file_path, 'w') as file:
+        json.dump(users, file)
+    
+    return True
+
+
 
 def login_user(username, password):
-    users_collection = db["users"]
-    user = users_collection.find_one({"username": username, "password": password})
-    if user:
-        log_activity(username, "login")
-        return True
-    else:
-        return False
+    users_file_path = os.path.join("user_database", "users.json")
+    
+    if os.path.exists(users_file_path):
+        with open(users_file_path, 'r') as file:
+            users = json.load(file)
+        
+        # Check credentials
+        if username in users and users[username] == password:
+            log_activity(username, "login")
+            return True
+    return False
+
 
 def log_activity(username, activity_type):
-    activities_collection = db["activities"]
-    current_time = datetime.datetime.now()
-    activities_collection.insert_one({"username": username, "activity_type": activity_type, "timestamp": current_time})
+    activities_file_path = os.path.join("user_database", "activities.json")
+    current_time = datetime.datetime.now().isoformat()
+    
+    # Load existing activities
+    if os.path.exists(activities_file_path):
+        with open(activities_file_path, 'r') as file:
+            activities = json.load(file)
+    else:
+        activities = []
+    
+    # Append the new activity
+    activities.append({"timestamp": current_time, "username": username, "activity_type": activity_type})
+    
+    # Save the updated activities back to the file
+    with open(activities_file_path, 'w') as file:
+        json.dump(activities, file)
+
 
 
             
 def chat_interface():
     st.header("AgriBot 🌾 - Chat")
 
+    # Initialize conversation_history if it doesn't exist
     if 'conversation_history' not in st.session_state:
         st.session_state.conversation_history = []
 
-    # Display the conversation history
+    # Now it's safe to use st.session_state.conversation_history
     for idx, (user_msg, assistant_msg) in enumerate(st.session_state.conversation_history):
         message(user_msg, is_user=True, key=f"user_{idx}")
         message(assistant_msg, key=f"assistant_{idx}")
@@ -183,19 +221,42 @@ def chat_interface():
             handle_user_input(transcribed_text)
 
 
+def save_chat_history(conversation_entry):
+    chat_data_path = os.path.join("chat_data", "chat_history.json")
+    os.makedirs("chat_data", exist_ok=True)  # Ensure the directory exists
+    
+    # Load existing chat history or initialize if not present
+    if os.path.exists(chat_data_path):
+        with open(chat_data_path, 'r') as file:
+            chat_history = json.load(file)
+    else:
+        chat_history = []
+    
+    # Append the new conversation entry and save
+    chat_history.append({"user": conversation_entry[0], "assistant": conversation_entry[1], "timestamp": datetime.datetime.now().isoformat()})
+    
+    with open(chat_data_path, 'w') as file:
+        json.dump(chat_history, file)
+
 
             
-
 def handle_user_input(input_text):
     if input_text:
         response = query(input_text)
         try:
-            assistant_response = response[0]['generated_text'].split('[/INST]')[1].strip()
-            st.session_state.conversation_history.append((input_text, assistant_response))
+            assistant_response = response['generated_text'].strip()  # Adjusted for direct response handling
+            new_history_entry = (input_text, assistant_response)
+            if 'conversation_history' not in st.session_state:
+                st.session_state.conversation_history = [new_history_entry]
+            else:
+                st.session_state.conversation_history.append(new_history_entry)
+            
+            save_chat_history(new_history_entry)  # Save each conversation entry
+            
         except Exception as e:
             st.error("An error occurred while processing the response from the assistant.")
-            st.error(e)                        
-            
+            st.error(str(e))
+
 
 def show_logout_interface():
     if st.sidebar.button("Logout"):
@@ -246,54 +307,52 @@ def show_registration_page():
 
 def main():
     ensure_user_database_exists()
-    st.set_page_config(page_title="AgriChat", page_icon="🌾", layout="wide")
+    st.set_page_config(page_title="AgriBot", page_icon="🌾", layout="wide")
     apply_custom_css()
 
+    page_container = st.empty()  # This container will hold either the login/registration form or the chat interface
+
     if "authenticated" not in st.session_state or not st.session_state["authenticated"]:
-        col1, col2, col3 = st.columns([1, 2, 1])
+        with page_container.container():  # Use container method to encapsulate the content properly
+            col1, col2, col3 = st.columns([1, 2, 1])
 
-        with col2:
-            st.image("background/logo.png", width=100)  # Ensure the path is correct
+            with col2:
+                st.image("background/logo.png", width=100)  # Ensure the path is correct
 
-            # Updated CSS with minimal padding
-            st.markdown("""
-                <style>
-                    .welcome-text, .option-text {
-                        color: #000000; /* Black color */
-                        background-color: rgba(255, 255, 255, 0.5); /* Translucent white background */
-                        padding: 2px 5px; /* Reduced padding around the text */
-                        border-radius: 5px; /* Rounded corners */
-                        display: inline; /* Align highlight with text */
-                        margin: 0; /* Remove default margins */
-                    }
-                    .welcome-text {
-                        font-size:50px !important;
-                        font-weight: bold !important;
-                    }
-                    .option-text {
-                        font-size:28px !important;
-                        font-weight: bold !important;
-                    }
-                </style>
-                """, unsafe_allow_html=True)
+                st.markdown("""
+                    <style>
+                        .welcome-text, .option-text {
+                            color: #000000; /* Black color */
+                            background-color: rgba(255, 255, 255, 0.5); /* Translucent white background */
+                            padding: 2px 5px; /* Reduced padding around the text */
+                            border-radius: 5px; /* Rounded corners */
+                            display: inline; /* Align highlight with text */
+                            margin: 0; /* Remove default margins */
+                        }
+                        .welcome-text {
+                            font-size:50px !important;
+                            font-weight: bold !important;
+                        }
+                        .option-text {
+                            font-size:28px !important;
+                            font-weight: bold !important;
+                        }
+                    </style>
+                    """, unsafe_allow_html=True)
 
-            # Use markdown to insert styled text without additional space
-            st.markdown('<div class="welcome-text">Welcome to AgriBot 🌾</div>', unsafe_allow_html=True)
-            
-            # Ensuring there's a break between the welcome message and the options
-            st.write("")
-            
-            st.markdown('<div class="option-text">Choose an option:</div>', unsafe_allow_html=True)
-            
-            # Radio buttons without a label, as the label is now part of the styled markdown above
-            form_selection = st.radio("", ["Login", "Register"], horizontal=True)
+                st.markdown('<div class="welcome-text">Welcome to AgriBot 🌾</div>', unsafe_allow_html=True)
+                st.write("")
+                st.markdown('<div class="option-text">Choose an option:</div>', unsafe_allow_html=True)
+                
+                form_selection = st.radio("", ["Register", "Login"], horizontal=True)
 
-            if form_selection == "Login":
-                show_login_page()
-            elif form_selection == "Register":
-                show_registration_page()
+                if form_selection == "Register":
+                    show_registration_page()
+                elif form_selection == "Login":
+                    show_login_page()
     else:
-        chat_interface()
+        page_container.empty()  # Clear the previous content
+        chat_interface()  # Show the chat interface if the user is authenticated
 
 if __name__ == "__main__":
     main()
