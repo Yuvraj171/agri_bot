@@ -239,36 +239,12 @@ def handle_user_input(input_text):
     if input_text:
         response = query(input_text)
         try:
-            # Check if response is a list and extract the first element
-            if isinstance(response, list) and len(response) > 0:
-                response = response[0]
-            
-            if 'generated_text' in response:
-                full_response = response['generated_text'].strip()
-                # Attempt to extract only the model's response, excluding the instruction text
-                # Assuming the instruction text ends with "Assistant: [/INST]"
-                assistant_response = full_response.split("Assistant: [/INST]")[-1].strip()
-                if assistant_response:  # Check if there's a valid response after extraction
-                    new_history_entry = (input_text, assistant_response)
-                    
-                    if 'conversation_history' not in st.session_state:
-                        st.session_state.conversation_history = [new_history_entry]
-                    else:
-                        st.session_state.conversation_history.append(new_history_entry)
-                    
-                    save_chat_history(new_history_entry)
-                else:
-                    st.error("Failed to process the assistant's response.")
-            else:
-                st.error("The response structure is not as expected.")
-                # Debug: Print or log the unexpected response
-                print("Unexpected response structure:", response)
+            assistant_response = response[0]['generated_text'].split('[/INST]')[1].strip()
+            st.session_state.conversation_history.append((input_text, assistant_response))
         except Exception as e:
             st.error("An error occurred while processing the response from the assistant.")
-            st.error(str(e))
-            # Additional debugging information
-            print("Error processing response:", response)
-
+            st.error(e)                        
+            
 
 def show_logout_interface():
     if st.sidebar.button("Logout"):
@@ -318,66 +294,47 @@ def show_registration_page():
 
 def main():
     ensure_user_database_exists()
-    st.set_page_config(page_title="AgriBot", page_icon="🌾", layout="wide")
+    st.set_page_config(page_title="AgriChat", page_icon="🌾", layout="wide")
+    apply_custom_css()
 
     if "authenticated" not in st.session_state or not st.session_state["authenticated"]:
-        # Apply background image for login and registration pages
-        background_image_url = "https://ideogram.ai/api/images/direct/FnjrEUIXQUqCwRYC-BkEtg.png"
-        background_style = f"""
-        <style>
-            .stApp {{
-                background-image: url('{background_image_url}');
-                background-size: cover;
-                background-repeat: no-repeat;
-                background-attachment: fixed;
-            }}
-        </style>
-        """
-        st.markdown(background_style, unsafe_allow_html=True)
+        col1, col2, col3 = st.columns([1, 2, 1])
 
-        # Login and registration interface
-        page_container = st.empty()
-        with page_container.container():
-            col1, col2, col3 = st.columns([1, 2, 1])
+        with col2:
+            st.image("background/logo.png", width=100)  # Ensure the path is correct
 
-            with col2:
-                # Make sure to adjust the path to your logo image
-                st.image("background/logo.png", width=100)
+            st.markdown("""
+                <style>
+                    .welcome-text, .option-text {
+                        color: #000000; /* Black color */
+                        background-color: rgba(255, 255, 255, 0.5); /* Translucent white background */
+                        padding: 2px 5px; /* Reduced padding around the text */
+                        border-radius: 5px; /* Rounded corners */
+                        display: inline; /* Align highlight with text */
+                        margin: 0; /* Remove default margins */
+                    }
+                    .welcome-text {
+                        font-size:50px !important;
+                        font-weight: bold !important;
+                    }
+                    .option-text {
+                        font-size:28px !important;
+                        font-weight: bold !important;
+                    }
+                </style>
+                """, unsafe_allow_html=True)
 
-                st.markdown("""
-                    <style>
-                        .welcome-text, .option-text {
-                            color: #000000; /* Black color */
-                            background-color: rgba(255, 255, 255, 0.5); /* Translucent white background */
-                            padding: 2px 5px; /* Reduced padding around the text */
-                            border-radius: 5px; /* Rounded corners */
-                            display: inline; /* Align highlight with text */
-                            margin: 0; /* Remove default margins */
-                        }
-                        .welcome-text {
-                            font-size:50px !important;
-                            font-weight: bold !important;
-                        }
-                        .option-text {
-                            font-size:28px !important;
-                            font-weight: bold !important;
-                        }
-                    </style>
-                    """, unsafe_allow_html=True)
+            st.markdown('<div class="welcome-text">Welcome to AgriBot 🌾</div>', unsafe_allow_html=True)
+            st.write("")
+            st.markdown('<div class="option-text">Choose an option:</div>', unsafe_allow_html=True)
+            
+            form_selection = st.radio("", ["Register", "Login"], horizontal=True)
 
-                st.markdown('<div class="welcome-text">Welcome to AgriBot 🌾</div>', unsafe_allow_html=True)
-                st.write("")
-                st.markdown('<div class="option-text">Choose an option:</div>', unsafe_allow_html=True)
-                
-                form_selection = st.radio("", ["Register", "Login"], horizontal=True)
-
-                if form_selection == "Register":
-                    show_registration_page()
-                elif form_selection == "Login":
-                    show_login_page()
+            if form_selection == "Register":
+                show_registration_page()
+            elif form_selection == "Login":
+                show_login_page()
     else:
-        # For the chat interface, no specific background
-        # The CSS reset for background might not be effective once the app has loaded
         chat_interface()
 
 if __name__ == "__main__":
