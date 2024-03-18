@@ -149,12 +149,19 @@ def log_activity(username, activity_type):
     activities_file_path = os.path.join("user_database", "activities.json")
     current_time = datetime.datetime.now().isoformat()
     
-    # Load existing activities
+    activities = []  # Initialize as empty list
+    
+    # Load existing activities if the file exists and is not empty
     if os.path.exists(activities_file_path):
-        with open(activities_file_path, 'r') as file:
-            activities = json.load(file)
-    else:
-        activities = []
+        try:
+            with open(activities_file_path, 'r') as file:
+                activities = json.load(file)
+        except json.JSONDecodeError:
+            # Handle empty or invalid JSON by initializing activities as an empty list
+            activities = []
+        except Exception as e:
+            print(f"An unexpected error occurred while loading activities: {e}")
+            # Depending on your error handling policies, you might want to raise the error or handle it
     
     # Append the new activity
     activities.append({"timestamp": current_time, "username": username, "activity_type": activity_type})
@@ -162,8 +169,6 @@ def log_activity(username, activity_type):
     # Save the updated activities back to the file
     with open(activities_file_path, 'w') as file:
         json.dump(activities, file)
-
-
 
             
 def chat_interface():
@@ -173,10 +178,13 @@ def chat_interface():
     if 'conversation_history' not in st.session_state:
         st.session_state.conversation_history = []
 
-    # Now it's safe to use st.session_state.conversation_history
-    for idx, (user_msg, assistant_msg) in enumerate(st.session_state.conversation_history):
-        message(user_msg, is_user=True, key=f"user_{idx}")
-        message(assistant_msg, key=f"assistant_{idx}")
+    # Iterate over conversation history and display messages
+    for idx, (role, msg) in enumerate(st.session_state.conversation_history):
+        if role == "User":
+            message(msg, is_user=True, key=f"user_{idx}")
+        elif role == "Assistant":
+            message(msg, is_user=False, key=f"assistant_{idx}")
+
 
     # Create some vertical space before the input box
     for _ in range(10):  # Adjust the range for more or less space
@@ -233,9 +241,12 @@ def save_chat_history(user_message, assistant_message):
             
 def handle_user_input(input_text):
     if input_text:
-        # Update conversation history
+        # Ensure conversation history is initialized
         if 'conversation_history' not in st.session_state:
             st.session_state.conversation_history = []
+
+        # Display the user's query above the prompt box, on the right side
+        message(input_text, is_user=True, key=f"user_{len(st.session_state.conversation_history)}")
 
         # Add the new user message to the conversation history
         st.session_state.conversation_history.append(("User", input_text))
@@ -259,30 +270,24 @@ def handle_user_input(input_text):
                 # Clean up the response
                 if "Assistant: " in assistant_response:
                     assistant_response = assistant_response.split("Assistant: ")[-1]
-                # Remove any trailing instruction tags if they exist
                 assistant_response = assistant_response.replace("[/INST]", "").strip()
 
-                # Check if the assistant response is not empty
                 if assistant_response:
+                    # Display the assistant's response
+                    message(assistant_response, key=f"assistant_{len(st.session_state.conversation_history)}")
+
                     # Save the assistant's response in the conversation history
                     st.session_state.conversation_history.append(("Assistant", assistant_response))
                     
                     save_chat_history(("User", input_text), ("Assistant", assistant_response))
-
-                    # Display the messages in the UI
-                    message(input_text, is_user=True, key=f"user_{len(st.session_state.conversation_history)}")
-                    message(assistant_response, key=f"assistant_{len(st.session_state.conversation_history)}")
                 else:
                     st.error("No assistant response was found in the API response.")
             else:
-                # Handle unexpected response structure
                 st.error("The response structure is not as expected.")
                 print("Unexpected response structure:", response)
         except Exception as e:
-            # Handle exceptions in processing the response
             st.error("An error occurred while processing the response from the assistant.")
             st.error(str(e))
-            # Additional debugging information
             print("Error processing response:", e)
 
 
