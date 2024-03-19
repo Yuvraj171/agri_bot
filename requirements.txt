@@ -1,6 +1,4 @@
 huggingface_hub
-langchain
-langchain_community
 pypdf
 hugchat==0.0.8
 accelerate
@@ -12,3 +10,5 @@ streamlit
 tiktoken
 streamlit_chat
 streamlit-audio-recorder
+ffmpeg-python
+whisper

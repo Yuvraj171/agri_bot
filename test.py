@@ -185,16 +185,17 @@ def chat_interface():
         elif role == "Assistant":
             message(msg, is_user=False, key=f"assistant_{idx}")
 
+    # Sidebar for choosing input type
+    input_type = st.sidebar.selectbox("Choose input type:", ["Text", "Audio", "Record Audio"], key='input_type_selection_sidebar')
 
     # Create some vertical space before the input box
     for _ in range(10):  # Adjust the range for more or less space
         st.write("")  # Each call adds a bit of vertical space
 
-    input_type = st.radio("Choose input type:", ["Text", "Audio", "Record Audio"], key='input_type_selection')
-
     with st.form(key='message_form'):
         user_input, audio_input, audio_bytes = None, None, None
         
+        # Use the input_type selected from the sidebar
         if input_type == "Text":
             user_input = st.text_input("Type your message here:", key="text_input")
         elif input_type == "Audio":
@@ -214,6 +215,7 @@ def chat_interface():
             st.audio(audio_bytes, format="audio/wav")
             transcribed_text = transcribe_audio_or_use_text_input(None, audio_bytes)
             handle_user_input(transcribed_text)
+
 
 
 def save_chat_history(user_message, assistant_message):
