@@ -188,6 +188,9 @@ def chat_interface():
     # Sidebar for choosing input type
     input_type = st.sidebar.selectbox("Choose input type:", ["Text", "Audio", "Record Audio"], key='input_type_selection_sidebar')
 
+    # Logout button in the sidebar
+    show_logout_interface()  # Call to display the logout button
+
     # Create some vertical space before the input box
     for _ in range(10):  # Adjust the range for more or less space
         st.write("")  # Each call adds a bit of vertical space
