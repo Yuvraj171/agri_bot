@@ -3,10 +3,12 @@ import whisper
 import tempfile
 import streamlit as st
 from streamlit_chat import message
+from audio_recorder_streamlit import audio_recorder  # Add this import for audio recording
 import json
 import datetime
 import os
 from pymongo import MongoClient
+from auth import log_activity
 from styles import chat_message_styles
 
 # MongoDB connection string. Update "localhost" with your MongoDB host if necessary
